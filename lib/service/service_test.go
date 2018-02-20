@@ -27,6 +27,10 @@ var _ = Describe("Service", func() {
 	var downloader *MockDownloader
 	var locker *MockLocker
 
+	var storeGetCalls []*gomock.Call
+	var lockerNewMutexCalls []*gomock.Call
+	var mtxLockCalls []*gomock.Call
+
 	var mockCtrl *gomock.Controller
 
 	AfterEach(func() {
@@ -42,11 +46,21 @@ var _ = Describe("Service", func() {
 	})
 
 	JustBeforeEach(func() {
+		gomock.InOrder(storeGetCalls...)
+		gomock.InOrder(lockerNewMutexCalls...)
+		gomock.InOrder(mtxLockCalls...)
+
 		subject = New(&Config{
 			Store:      store,
 			Downloader: downloader,
 			Locker:     locker,
 		})
+	})
+
+	AfterEach(func() {
+		storeGetCalls = []*gomock.Call{}
+		lockerNewMutexCalls = []*gomock.Call{}
+		mtxLockCalls = []*gomock.Call{}
 	})
 
 	Describe("Perform", func() {
@@ -105,7 +119,7 @@ var _ = Describe("Service", func() {
 
 			Context("When data already in store", func() {
 				BeforeEach(func() {
-					store.EXPECT().Get(fprint).Return(resData)
+					storeGetCalls = append(storeGetCalls, store.EXPECT().Get(fprint).Return(resData))
 				})
 
 				ItBehavesAsPerformed()
@@ -113,20 +127,20 @@ var _ = Describe("Service", func() {
 
 			Context("When data not in store", func() {
 				BeforeEach(func() {
-					store.EXPECT().Get(fprint).Return([]byte{})
-					locker.EXPECT().NewMutex(fprint).Return(mtx)
+					storeGetCalls = append(storeGetCalls, store.EXPECT().Get(fprint).Return([]byte{}))
+					lockerNewMutexCalls = append(lockerNewMutexCalls, locker.EXPECT().NewMutex(fprint).Return(mtx))
 				})
 
-				WhenMutexAquired := func(nestedSpecs ...func()) {
+				WhenMutexAquired := func() {
 					Context("When mutex acquired", func() {
 						BeforeEach(func() {
-							mtx.EXPECT().Lock().Return(nil)
+							mtxLockCalls = append(mtxLockCalls, mtx.EXPECT().Lock().Return(nil))
 							mtx.EXPECT().Unlock().Return(true)
 						})
 
 						Context("When data already in store", func() {
 							BeforeEach(func() {
-								store.EXPECT().Get(fprint).Return(resData)
+								storeGetCalls = append(storeGetCalls, store.EXPECT().Get(fprint).Return(resData))
 							})
 
 							ItBehavesAsPerformed()
@@ -134,7 +148,7 @@ var _ = Describe("Service", func() {
 
 						Context("When data still not in store", func() {
 							BeforeEach(func() {
-								store.EXPECT().Get(fprint).Return([]byte{})
+								storeGetCalls = append(storeGetCalls, store.EXPECT().Get(fprint).Return([]byte{}))
 							})
 
 							Context("When can't perform transformation", func() {
@@ -152,7 +166,7 @@ var _ = Describe("Service", func() {
 
 								Context("When transformed value is stored successfully", func() {
 									BeforeEach(func() {
-										store.EXPECT().Set(fprint, resData).Return(nil)
+										storeGetCalls = append(storeGetCalls, store.EXPECT().Set(fprint, resData).Return(nil))
 									})
 
 									ItBehavesAsPerformed()
@@ -160,7 +174,7 @@ var _ = Describe("Service", func() {
 
 								Context("When transformed value is not stored", func() {
 									BeforeEach(func() {
-										store.EXPECT().Set(fprint, resData).Return(ErrOups)
+										storeGetCalls = append(storeGetCalls, store.EXPECT().Set(fprint, resData).Return(ErrOups))
 									})
 
 									ItBehavesAsPerformed()
@@ -176,23 +190,19 @@ var _ = Describe("Service", func() {
 							})
 						})
 					})
-
-					for i := range nestedSpecs {
-						nestedSpecs[i]()
-					}
 				}
 
 				WhenMutexAquired()
 
 				Context("When mutex not acquired", func() {
 					BeforeEach(func() {
-						mtx.EXPECT().Lock().Return(ErrOups)
+						mtxLockCalls = append(mtxLockCalls, mtx.EXPECT().Lock().Return(ErrOups))
 					})
 
 					Describe("Store Polling", func() {
 						Context("When data is immediately in store", func() {
 							BeforeEach(func() {
-								store.EXPECT().Get(fprint).Return(resData)
+								storeGetCalls = append(storeGetCalls, store.EXPECT().Get(fprint).Return(resData))
 							})
 
 							ItBehavesAsPerformed()
@@ -200,8 +210,8 @@ var _ = Describe("Service", func() {
 
 						Context("When data is in store after another poll", func() {
 							BeforeEach(func() {
-								call := store.EXPECT().Get(fprint).Return([]byte{})
-								store.EXPECT().Get(fprint).Return(resData).After(call)
+								storeGetCalls = append(storeGetCalls, store.EXPECT().Get(fprint).Return([]byte{}))
+								storeGetCalls = append(storeGetCalls, store.EXPECT().Get(fprint).Return(resData))
 							})
 
 							ItBehavesAsPerformed()
@@ -209,25 +219,26 @@ var _ = Describe("Service", func() {
 
 						Context("When data is not in store after all polls", func() {
 							BeforeEach(func() {
-								call := store.EXPECT().Get(fprint).Return([]byte{})
-								call2 := store.EXPECT().Get(fprint).Return([]byte{}).After(call)
-								store.EXPECT().Get(fprint).Return([]byte{}).After(call2)
+								storeGetCalls = append(storeGetCalls, store.EXPECT().Get(fprint).Return([]byte{}))
+								storeGetCalls = append(storeGetCalls, store.EXPECT().Get(fprint).Return([]byte{}))
+								storeGetCalls = append(storeGetCalls, store.EXPECT().Get(fprint).Return([]byte{}))
 
-								locker.EXPECT().NewMutex(fprint).Return(mtx)
+								lockerNewMutexCalls = append(lockerNewMutexCalls, locker.EXPECT().NewMutex(fprint).Return(mtx))
 							})
 
 							WhenMutexAquired()
 
 							Context("When mutex not acquired", func() {
 								BeforeEach(func() {
-									call := store.EXPECT().Get(fprint).Return([]byte{})
-									call2 := store.EXPECT().Get(fprint).Return([]byte{}).After(call)
-									store.EXPECT().Get(fprint).Return([]byte{}).After(call2)
+									storeGetCalls = append(storeGetCalls, store.EXPECT().Get(fprint).Return([]byte{}))
+									storeGetCalls = append(storeGetCalls, store.EXPECT().Get(fprint).Return([]byte{}))
+									storeGetCalls = append(storeGetCalls, store.EXPECT().Get(fprint).Return([]byte{}))
 
-									mtx.EXPECT().Lock().Return(ErrOups)
+									mtxLockCalls = append(mtxLockCalls, mtx.EXPECT().Lock().Return(ErrOups))
 
 									t.EXPECT().Perform(data).Return(resData, nil)
-									store.EXPECT().Set(fprint, resData).Return(nil)
+
+									storeGetCalls = append(storeGetCalls, store.EXPECT().Set(fprint, resData).Return(nil))
 								})
 
 								ItBehavesAsPerformed()

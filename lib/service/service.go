@@ -65,6 +65,7 @@ func (s *Service) syncedPerform(key string, imgBytes []byte, t Transformation, a
 	m := s.locker.NewMutex(key)
 
 	err := m.Lock()
+
 	if err == nil {
 		defer m.Unlock()
 

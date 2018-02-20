@@ -11,21 +11,21 @@ import (
 )
 
 const (
-	defaultBucket   = "cldnrthumbnails"
-	defaultRedisURL = "localhost:6379"
-	defaultBindPort = "8080"
-	awsRegion       = "us-east-1"
+	defaultAwsRegion = "us-east-1"
+	defaultBucket    = "cldnrthumbnails"
+	defaultRedisURL  = "redis://localhost:6379"
+	defaultBindPort  = "8080"
 )
 
 func ReadConfig() (*service.Config, error) {
-	store, err := store.New(os.Getenv("AWS_S3_ENDPOINT"), awsRegion, bucketName())
+	store, err := store.New(s3Endpoint(), awsRegion(), bucketName())
 	if err != nil {
-		return nil, fmt.Errorf("unable to init s3 store: ", err)
+		return nil, fmt.Errorf("unable to init s3 store: %s", err)
 	}
 
 	locker, err := locker.New(redisURL())
 	if err != nil {
-		return nil, fmt.Errorf("unable to connect to redis: ", err)
+		return nil, fmt.Errorf("unable to connect to redis: %s", err)
 	}
 
 	return &service.Config{
@@ -57,4 +57,16 @@ func bindPort() string {
 		port = defaultBindPort
 	}
 	return ":" + port
+}
+
+func awsRegion() string {
+	region := os.Getenv("AWS_REGION")
+	if region == "" {
+		region = defaultAwsRegion
+	}
+	return region
+}
+
+func s3Endpoint() string {
+	return os.Getenv("AWS_S3_ENDPOINT")
 }
