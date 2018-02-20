@@ -14,7 +14,7 @@ func newPool(server string) *goRedis.Pool {
 		MaxIdle:     3,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (goRedis.Conn, error) {
-			c, err := goRedis.Dial("tcp", server)
+			c, err := goRedis.DialURL(server)
 			if err != nil {
 				return nil, err
 			}
