@@ -36,7 +36,7 @@ func (Http) Download(url string) ([]byte, error) {
 
 	t := http.DetectContentType(data)
 	if _, ok := supportedTypes[t]; !ok {
-		return nil, lib.NewError(fmt.Errorf("content type %s not supported"), lib.UnsupportedContentType)
+		return nil, lib.NewError(fmt.Errorf("content type %s not supported", t), lib.UnsupportedContentType)
 	}
 
 	return data, nil

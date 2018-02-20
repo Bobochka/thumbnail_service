@@ -87,19 +87,23 @@ func (app *App) renderImg(w http.ResponseWriter, img []byte) {
 
 func (app *App) renderError(w http.ResponseWriter, err error) {
 	code := 500
-	msg := "sorry, but something went wrong"
+	msg := lib.GenericMsg
+	realMsg := err.Error()
 
-	if codedError, ok := err.(lib.Error); ok {
+	codedError, ok := err.(lib.Error)
+
+	if ok {
 		code = codedError.Code()
 		msg = codedError.Msg()
+		realMsg = codedError.Error()
 	}
+
+	log.Println("error: ", realMsg)
 
 	w.WriteHeader(code)
 
 	response := struct{ Error string }{msg}
 	data, e := json.Marshal(response)
-
-	//log.Printf("data: %+v\n", data)
 
 	if e != nil {
 		log.Println("error marshaling response: ", e.Error())

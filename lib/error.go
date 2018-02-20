@@ -64,12 +64,9 @@ func (e Error) Code() int {
 	return 500
 }
 
-const genericMsg = "Sorry, but something went wrong, our support engineers are already notified"
+const GenericMsg = "Sorry, but something went wrong, our support engineers are already notified"
 
 func (e Error) Msg() string {
-	//log.Printf("e: %+v\n", e)
-	//log.Printf("e.msgOverride: %+v\n", e.msgOverride)
-
 	if e.msgOverride != "" {
 		return e.msgOverride
 	}
@@ -79,5 +76,5 @@ func (e Error) Msg() string {
 		return msg
 	}
 
-	return genericMsg
+	return GenericMsg
 }
