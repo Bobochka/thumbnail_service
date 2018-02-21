@@ -10,6 +10,7 @@ import (
 	_ "image/png"
 )
 
+var JpegQuality = 100
 var ErrUnknownFormat = errors.New("can't decode: unknown image format")
 
 type Img struct {
@@ -17,7 +18,7 @@ type Img struct {
 
 func (Img) Encode(img image.Image) ([]byte, error) {
 	buf := &bytes.Buffer{}
-	err := jpeg.Encode(buf, img, &jpeg.Options{Quality: 100})
+	err := jpeg.Encode(buf, img, &jpeg.Options{Quality: JpegQuality})
 	if err != nil {
 		return nil, err
 	}
