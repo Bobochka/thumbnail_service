@@ -1,10 +1,10 @@
 package downloader
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/Bobochka/thumbnail_service/lib"
-	"github.com/go-errors/errors"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"gopkg.in/h2non/gock.v1"
