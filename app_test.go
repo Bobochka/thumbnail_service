@@ -68,7 +68,7 @@ var _ = Describe("App", func() {
 				gock.EnableNetworking() // in order to access s3
 			})
 
-			BeforeEach(func() {
+			AfterEach(func() {
 				gock.Off()
 			})
 

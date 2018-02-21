@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/Bobochka/thumbnail_service/lib"
+	"github.com/paulbellamy/ratecounter"
 )
 
 type Store interface {
@@ -34,6 +35,7 @@ type Service struct {
 	store      Store
 	downloader Downloader
 	locker     Locker
+	counter    *ratecounter.AvgRateCounter
 }
 
 func New(config *Config) *Service {
@@ -41,8 +43,15 @@ func New(config *Config) *Service {
 		store:      config.Store,
 		downloader: config.Downloader,
 		locker:     config.Locker,
+		counter:    ratecounter.NewAvgRateCounter(60 * time.Second),
 	}
 }
+
+var (
+	StorePollTries           = 3
+	MaxLoops                 = 2
+	DefaultPollSleepInterval = 200 * time.Millisecond
+)
 
 func (s *Service) Perform(url string, t Transformation) ([]byte, error) {
 	imgBytes, err := s.downloader.Download(url)
@@ -58,8 +67,6 @@ func (s *Service) Perform(url string, t Transformation) ([]byte, error) {
 
 	return s.syncedPerform(key, imgBytes, t, 0)
 }
-
-const maxAttempts = 2
 
 func (s *Service) syncedPerform(key string, imgBytes []byte, t Transformation, attempt int) ([]byte, error) {
 	m := s.locker.NewMutex(key)
@@ -78,13 +85,24 @@ func (s *Service) syncedPerform(key string, imgBytes []byte, t Transformation, a
 		if len(value) > 0 {
 			return value, nil
 		} else {
-			if attempt < maxAttempts-1 {
+			if attempt < MaxLoops-1 {
 				return s.syncedPerform(key, imgBytes, t, attempt+1)
 			}
 		}
 	}
 
-	return s.perform(key, imgBytes, t)
+	return s.instrumentedPerform(key, imgBytes, t)
+}
+
+func (s *Service) instrumentedPerform(key string, data []byte, t Transformation) ([]byte, error) {
+	start := time.Now()
+
+	data, err := s.perform(key, data, t)
+	if err != nil {
+		s.counter.Incr(time.Since(start).Nanoseconds())
+	}
+
+	return data, err
 }
 
 func (s *Service) perform(key string, data []byte, t Transformation) ([]byte, error) {
@@ -99,13 +117,23 @@ func (s *Service) perform(key string, data []byte, t Transformation) ([]byte, er
 }
 
 func (s *Service) pollStoredValue(key string) []byte {
-	// TODO: extract 3 to config
-	for i := 0; i < 3; i++ {
-		time.Sleep(200 * time.Millisecond) // TODO: config
+	for i := 0; i < StorePollTries; i++ {
+		// sleep half of avg execution time, so there will be good
+		time.Sleep(s.pollSleepInterval())
+
 		if stored := s.store.Get(key); len(stored) > 0 {
 			return stored
 		}
 	}
 
 	return nil
+}
+
+func (s *Service) pollSleepInterval() time.Duration {
+	cnt := s.counter.Hits()
+	if cnt == 0 {
+		return DefaultPollSleepInterval
+	}
+
+	return time.Duration(s.counter.Rate() / 2)
 }

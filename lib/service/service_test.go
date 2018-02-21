@@ -4,6 +4,8 @@ import (
 	"errors"
 	"testing"
 
+	"time"
+
 	"github.com/Bobochka/thumbnail_service/lib"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
@@ -43,6 +45,8 @@ var _ = Describe("Service", func() {
 		t = NewMockTransformation(mockCtrl)
 		downloader = NewMockDownloader(mockCtrl)
 		locker = NewMockLocker(mockCtrl)
+
+		DefaultPollSleepInterval = time.Millisecond
 	})
 
 	JustBeforeEach(func() {

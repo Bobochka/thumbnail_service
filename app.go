@@ -27,6 +27,12 @@ type params struct {
 }
 
 func (app *App) thumbnail(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if r := recover(); r != nil {
+			app.renderError(w, fmt.Errorf("%s", r))
+		}
+	}()
+
 	params, err := app.thumbnailParams(r)
 	if err != nil {
 		app.renderError(w, err)

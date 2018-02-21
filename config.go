@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Bobochka/thumbnail_service/lib"
 	"github.com/Bobochka/thumbnail_service/lib/downloader"
 	"github.com/Bobochka/thumbnail_service/lib/locker"
 	"github.com/Bobochka/thumbnail_service/lib/service"
@@ -30,7 +31,7 @@ func ReadConfig() (*service.Config, error) {
 
 	return &service.Config{
 		Store:      store,
-		Downloader: downloader.Http{},
+		Downloader: downloader.New(lib.SupportedContentTypes),
 		Locker:     locker,
 	}, nil
 }
