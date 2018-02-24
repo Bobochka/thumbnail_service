@@ -115,7 +115,7 @@ func (s *Service) syncedPerform(key string, imgBytes []byte, t Transformation, a
 	// if panic will happen during execution, just unlock should work fine.
 	//
 	// Although this solution is not exactly fault tolerant, if process will crash in the middle of operation,
-	// next process (because it won't acquire mutex) will spend (3 * avg (transform + store) time) on store polling
+	// next process (because it won't acquire mutex) will spend at max (3 * avg (transform + store) time) on store polling
 	// and then the state will be ok. During the burst, `processed only once` rule might be violated as well.
 
 	if isLocked {
