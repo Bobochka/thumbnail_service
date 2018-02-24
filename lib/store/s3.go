@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -45,6 +46,12 @@ func (s *S3) Get(key string) []byte {
 	res := []byte{}
 	buffer := aws.NewWriteAtBuffer(res)
 	_, err := s.downloader.Download(buffer, params)
+
+	if aerr, ok := err.(awserr.Error); ok {
+		if aerr.Code() == s3.ErrCodeNoSuchKey {
+			return buffer.Bytes()
+		}
+	}
 
 	if err != nil {
 		log.Printf("unable to read from s3: %+v\n", err)

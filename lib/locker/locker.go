@@ -33,7 +33,7 @@ func (r *RedisLocker) NewMutex(name string) lib.Mutex {
 	return r.Redsync.NewMutex(
 		name,
 		redsync.SetTries(3),
-		redsync.SetExpiry(time.Second),
+		redsync.SetExpiry(5*time.Second),
 		redsync.SetRetryDelay(200*time.Millisecond),
 	)
 }

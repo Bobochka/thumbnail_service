@@ -55,3 +55,15 @@ func (m *MockMutex) Unlock() bool {
 func (mr *MockMutexMockRecorder) Unlock() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Unlock", reflect.TypeOf((*MockMutex)(nil).Unlock))
 }
+
+// Extend mocks base method
+func (m *MockMutex) Extend() bool {
+	ret := m.ctrl.Call(m, "Extend")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Extend indicates an expected call of Extend
+func (mr *MockMutexMockRecorder) Extend() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Extend", reflect.TypeOf((*MockMutex)(nil).Extend))
+}

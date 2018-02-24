@@ -139,59 +139,48 @@ var _ = Describe("Service", func() {
 					Context("When mutex acquired", func() {
 						BeforeEach(func() {
 							mtxLockCalls = append(mtxLockCalls, mtx.EXPECT().Lock().Return(nil))
-							mtx.EXPECT().Unlock().Return(true)
 						})
 
-						Context("When data already in store", func() {
+						Context("When can't perform transformation", func() {
 							BeforeEach(func() {
-								storeGetCalls = append(storeGetCalls, store.EXPECT().Get(fprint).Return(resData))
+								t.EXPECT().Perform(data).Return([]byte{}, ErrOups)
+								mtx.EXPECT().Unlock().Return(true)
 							})
 
-							ItBehavesAsPerformed()
+							ItBehavesAsNotPerformed()
 						})
 
-						Context("When data still not in store", func() {
+						Context("When transformation is performed", func() {
 							BeforeEach(func() {
-								storeGetCalls = append(storeGetCalls, store.EXPECT().Get(fprint).Return([]byte{}))
+								t.EXPECT().Perform(data).Return(resData, nil)
 							})
 
-							Context("When can't perform transformation", func() {
+							Context("When transformed value is stored successfully", func() {
 								BeforeEach(func() {
-									t.EXPECT().Perform(data).Return([]byte{}, ErrOups)
+									storeGetCalls = append(storeGetCalls, store.EXPECT().Set(fprint, resData).Return(nil))
+									mtx.EXPECT().Extend().Return(true)
 								})
 
-								ItBehavesAsNotPerformed()
+								ItBehavesAsPerformed()
 							})
 
-							Context("When transformation is performed", func() {
+							Context("When transformed value is not stored", func() {
 								BeforeEach(func() {
-									t.EXPECT().Perform(data).Return(resData, nil)
+									storeGetCalls = append(storeGetCalls, store.EXPECT().Set(fprint, resData).Return(ErrOups))
+									mtx.EXPECT().Unlock().Return(true)
 								})
 
-								Context("When transformed value is stored successfully", func() {
-									BeforeEach(func() {
-										storeGetCalls = append(storeGetCalls, store.EXPECT().Set(fprint, resData).Return(nil))
-									})
+								ItBehavesAsPerformed()
+							})
+						})
 
-									ItBehavesAsPerformed()
-								})
-
-								Context("When transformed value is not stored", func() {
-									BeforeEach(func() {
-										storeGetCalls = append(storeGetCalls, store.EXPECT().Set(fprint, resData).Return(ErrOups))
-									})
-
-									ItBehavesAsPerformed()
-								})
+						Context("When transformation is not performed", func() {
+							BeforeEach(func() {
+								t.EXPECT().Perform(data).Return([]byte{}, ErrOups)
+								mtx.EXPECT().Unlock().Return(true)
 							})
 
-							Context("When transformation is not performed", func() {
-								BeforeEach(func() {
-									t.EXPECT().Perform(data).Return([]byte{}, ErrOups)
-								})
-
-								ItBehavesAsNotPerformed()
-							})
+							ItBehavesAsNotPerformed()
 						})
 					})
 				}
@@ -241,6 +230,7 @@ var _ = Describe("Service", func() {
 									mtxLockCalls = append(mtxLockCalls, mtx.EXPECT().Lock().Return(ErrOups))
 
 									t.EXPECT().Perform(data).Return(resData, nil)
+									mtx.EXPECT().Extend().Return(true)
 
 									storeGetCalls = append(storeGetCalls, store.EXPECT().Set(fprint, resData).Return(nil))
 								})
