@@ -74,7 +74,7 @@ func (s *Service) Perform(url string, t Transformation) ([]byte, error) {
 
 func (s *Service) syncedPerform(key string, imgBytes []byte, t Transformation, attempt int) ([]byte, error) {
 	m := s.locker.NewMutex(key)
-	err := m.Lock()
+	isLocked := m.Lock() == nil
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -83,7 +83,7 @@ func (s *Service) syncedPerform(key string, imgBytes []byte, t Transformation, a
 		}
 	}()
 
-	if err != nil { // mutex not acquired
+	if !isLocked {
 		value := s.pollStoredValue(key)
 
 		if len(value) > 0 {
@@ -114,18 +114,21 @@ func (s *Service) syncedPerform(key string, imgBytes []byte, t Transformation, a
 	//
 	// if panic will happen during execution, just unlock should work fine.
 	//
-	// Although this solution is not exactly fault tolerant,
-	// if process will crash in the middle of operation,
-	// next process will spend (3 * avg op time) during polling and then all will be good.
+	// Although this solution is not exactly fault tolerant, if process will crash in the middle of operation,
+	// next process (because it won't acquire mutex) will spend (3 * avg (transform + store) time) on store polling
+	// and then the state will be ok. During the burst, `processed only once` rule might be violated as well.
 
-	if err == nil {
-		m.Extend()
-	} else {
-		// swallow store error
-		if err == ErrOnStore {
-			err = nil
+	if isLocked {
+		if err == nil {
+			m.Extend()
+		} else {
+			m.Unlock()
 		}
-		m.Unlock()
+	}
+
+	// swallow store error
+	if err == ErrOnStore {
+		err = nil
 	}
 
 	return data, err

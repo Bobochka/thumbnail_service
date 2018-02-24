@@ -230,7 +230,6 @@ var _ = Describe("Service", func() {
 									mtxLockCalls = append(mtxLockCalls, mtx.EXPECT().Lock().Return(ErrOups))
 
 									t.EXPECT().Perform(data).Return(resData, nil)
-									mtx.EXPECT().Extend().Return(true)
 
 									storeGetCalls = append(storeGetCalls, store.EXPECT().Set(fprint, resData).Return(nil))
 								})
