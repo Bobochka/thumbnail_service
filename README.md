@@ -13,6 +13,8 @@ go get -u github.com/golang/dep/cmd/dep
 2. Install service
 ```bash
 go get github.com/Bobochka/thumbnail_service
+cd $GOPATH/src/github.com/Bobochka/thumbnail_service
+dep ensure
 ```
 
 ## Run
